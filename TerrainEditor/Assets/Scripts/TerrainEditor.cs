@@ -6,16 +6,22 @@ public class TerrainEditor : MonoBehaviour
 {
     struct Polygon
     {
-        public List<Vector2> vertices;
-        public Vector2 origin;
+        public List<Vector2> verts;
+        public Vector2 translation;
         public string name;
 
         public Polygon(Vector2 position) : this()
         {
-            vertices = new List<Vector2>();
-            origin = position;
+            verts = new List<Vector2>();
+            translation = position;
+        }
+
+        public void setName(string name)
+        {
+            this.name = name;
         }
     }
+
 
     List<Polygon> Polygons;
     int selected;
@@ -43,31 +49,33 @@ public class TerrainEditor : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Polygons.Count == 0)
+            return;
+
         bool addedVertThisFrame = false;
 
-        if (Polygons[selected].vertices.Count == 0)
+        if (Polygons[selected].verts.Count == 0)
         {
-            Debug.DrawLine(Vector3.zero, cam.ScreenToWorldPoint(Input.mousePosition), Color.green);
+            Debug.DrawLine(Vector3.zero, cam.ScreenToWorldPoint(Input.mousePosition), Color.white);
         }
         else
         {
             // draw current polygon in green
             int v = 0;
-            while (v < Polygons[selected].vertices.Count - 1)
+            while (v < Polygons[selected].verts.Count)
             {
-                Debug.DrawLine(Polygons[selected].vertices[v], Polygons[selected].vertices[++v], Color.green);
+                Debug.DrawLine(Polygons[selected].verts[v], Polygons[selected].verts[++v % Polygons[selected].verts.Count], Color.green);
             }
 
-            Debug.DrawLine(Polygons[selected].vertices[Polygons[selected].vertices.Count - 1], Polygons[selected].vertices[0], Color.green);
-
             // draw next polygon in blue
-            Debug.DrawLine(Polygons[selected].vertices[Polygons[selected].vertices.Count - 1], cam.ScreenToWorldPoint(Input.mousePosition), Color.blue);
-            Debug.DrawLine(cam.ScreenToWorldPoint(Input.mousePosition), Polygons[selected].vertices[0], Color.blue);
+            Debug.DrawLine(Polygons[selected].verts[Polygons[selected].verts.Count - 1], cam.ScreenToWorldPoint(Input.mousePosition), Color.blue);
+            Debug.DrawLine(cam.ScreenToWorldPoint(Input.mousePosition), Polygons[selected].verts[0], Color.blue);
         }
 
+        // add verts:
         if (Input.GetMouseButtonDown(0) && !addedVertThisFrame)
         {
-            Polygons[selected].vertices.Add(cam.ScreenToWorldPoint(Input.mousePosition));
+            Polygons[selected].verts.Add(cam.ScreenToWorldPoint(Input.mousePosition));
             addedVertThisFrame = true;
         }
 
@@ -80,11 +88,10 @@ public class TerrainEditor : MonoBehaviour
 
                 if (drag > minDrag)
                 {
-                    Polygons[selected].vertices.Add(cam.ScreenToWorldPoint(Input.mousePosition));
+                    Polygons[selected].verts.Add(cam.ScreenToWorldPoint(Input.mousePosition));
                     drag = 0f;
                 }
-
-                prevMousePos = Input.mousePosition;
+             
                 addedVertThisFrame = true;
             }
         }
@@ -92,37 +99,24 @@ public class TerrainEditor : MonoBehaviour
         {
             drag = 0f;
         }
-	}
+
+        prevMousePos = Input.mousePosition;
+    }
 
 
     public void Export()
     {
-        // debug
-        foreach (Vector2 vec in Polygons[selected].vertices)
-        {
-            Debug.Log(vec.ToString());
-        }
-
         foreach (Polygon poly in Polygons)
         {
             GameObject Terrain = new GameObject(poly.name);
 
             int v = 0;
-            while (v < Polygons[selected].vertices.Count)
+            while (v < poly.verts.Count)
             {
                 EdgeCollider2D edge = Terrain.AddComponent<EdgeCollider2D>();
-                Vector2[] newPoints = new Vector2[2];
-                newPoints[0] = Polygons[selected].vertices[v];
-                v++;
-                newPoints[1] = Polygons[selected].vertices[v % Polygons[selected].vertices.Count];
+                Vector2[] newPoints = { poly.verts[v], poly.verts[++v % poly.verts.Count] };
                 edge.points = newPoints;
             }
-
-            EdgeCollider2D finalEdge = Terrain.AddComponent<EdgeCollider2D>();
-            Vector2[] finalPoints = new Vector2[2];
-            finalPoints[0] = Polygons[selected].vertices[Polygons[selected].vertices.Count - 1];
-            finalPoints[1] = Polygons[selected].vertices[0];
-            finalEdge.points = finalPoints;
         }
     }
 }
