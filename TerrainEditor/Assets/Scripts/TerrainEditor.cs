@@ -7,13 +7,14 @@ public class TerrainEditor : MonoBehaviour
     struct Polygon
     {
         public List<Vector2> verts;
-        public Vector2 translation;
+        public Vector2 origin;
         public string name;
+        
 
         public Polygon(Vector2 position) : this()
         {
             verts = new List<Vector2>();
-            translation = position;
+            origin = position;
         }
 
         public void setName(string name)
@@ -24,7 +25,7 @@ public class TerrainEditor : MonoBehaviour
 
 
     List<Polygon> Polygons;
-    int selected;
+    public int selected = -1;
 
     Camera cam;
     float drag = 0f;
@@ -34,7 +35,6 @@ public class TerrainEditor : MonoBehaviour
     public float minDrag = 0.5f;
 
     
-    // Use this for initialization
     void Start ()
     {      
         cam = GameObject.Find("Main Camera").GetComponent<Camera>();
@@ -46,17 +46,31 @@ public class TerrainEditor : MonoBehaviour
 	}
 
 
-    // Update is called once per frame
     void Update()
     {
         if (Polygons.Count == 0)
             return;
 
+        Vector3 mousePos = cam.ScreenToWorldPoint(Input.mousePosition);
+
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+        { // force horizontal/vertical
+            Vector3 from = Polygons[selected].verts.Count > 0 ? Polygons[selected].verts[Polygons[selected].verts.Count - 1] : Polygons[selected].origin;
+            if (Mathf.Abs(from.x - mousePos.x) > Mathf.Abs(from.y - mousePos.y))
+            { 
+                mousePos.y = from.y; // further horizontal distance, snap to x axis
+            }
+            else
+            { 
+                mousePos.x = from.x; // further vertical distance, snap to y axis
+            }
+        }
+
         bool addedVertThisFrame = false;
 
         if (Polygons[selected].verts.Count == 0)
         {
-            Debug.DrawLine(Vector3.zero, cam.ScreenToWorldPoint(Input.mousePosition), Color.white);
+            Debug.DrawLine(Polygons[selected].origin, mousePos, Color.white);
         }
         else
         {
@@ -68,14 +82,15 @@ public class TerrainEditor : MonoBehaviour
             }
 
             // draw next polygon in blue
-            Debug.DrawLine(Polygons[selected].verts[Polygons[selected].verts.Count - 1], cam.ScreenToWorldPoint(Input.mousePosition), Color.blue);
-            Debug.DrawLine(cam.ScreenToWorldPoint(Input.mousePosition), Polygons[selected].verts[0], Color.blue);
+            Debug.DrawLine(Polygons[selected].verts[Polygons[selected].verts.Count - 1], mousePos, Color.blue);
+            Debug.DrawLine(mousePos, Polygons[selected].verts[0], Color.blue);
         }
+
 
         // add verts:
         if (Input.GetMouseButtonDown(0) && !addedVertThisFrame)
         {
-            Polygons[selected].verts.Add(cam.ScreenToWorldPoint(Input.mousePosition));
+            Polygons[selected].verts.Add(mousePos);
             addedVertThisFrame = true;
         }
 
@@ -88,7 +103,7 @@ public class TerrainEditor : MonoBehaviour
 
                 if (drag > minDrag)
                 {
-                    Polygons[selected].verts.Add(cam.ScreenToWorldPoint(Input.mousePosition));
+                    Polygons[selected].verts.Add(mousePos);
                     drag = 0f;
                 }
              
@@ -116,6 +131,19 @@ public class TerrainEditor : MonoBehaviour
                 EdgeCollider2D edge = Terrain.AddComponent<EdgeCollider2D>();
                 Vector2[] newPoints = { poly.verts[v], poly.verts[++v % poly.verts.Count] };
                 edge.points = newPoints;
+            }
+        }
+    }
+
+
+    void OnDrawGizmos()
+    {
+        if (selected >= 0)
+        {
+            foreach (Vector2 vert in Polygons[selected].verts)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawSphere(vert, 0.1f);
             }
         }
     }
